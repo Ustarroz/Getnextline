@@ -5,7 +5,7 @@
 ** Login   <robin@epitech.net>
 **
 ** Started on  Mon Jan  4 15:11:24 2016 robin
-** Last update Wed Jan 13 15:16:38 2016 robin
+** Last update Thu Jan 14 10:01:06 2016 robin
 */
 
 #include "./get_nextline.h"
@@ -108,11 +108,11 @@ char	*manhattan_project(char *buffer)
 	      i++;
 	      k++;
 	    }
-	  tmp[READ_SIZE] = '\0';
+	  tmp[READ_SIZE + 1] = '\0';
+	  free (buffer);
+	  buffer = tmp;
 	}
     }
-  free (buffer);
-  buffer = tmp;
   return (buffer);
 }
 
@@ -128,14 +128,16 @@ char		*get_next_line(const int fd)
   if (buffer == NULL)
     {
       buffer = malloc(READ_SIZE + 1);
-      if ((j = read(fd, buffer, 10)) < 0)
+      if ((j = read(fd, buffer, READ_SIZE)) < 0)
 	return (NULL);
       buffer[j] = '\0';
     }
-  buffer = manhattan_project(buffer);
+  else
+    buffer = manhattan_project(buffer);
   while ((k = fill_stock(buffer, stock) == 0))
     {
-      read(fd, buffer, READ_SIZE);
+      j = read(fd, buffer, READ_SIZE);
+      buffer[j] = '\0';
       stock = my_realloc(buffer, stock);
     }
   return (stock);
