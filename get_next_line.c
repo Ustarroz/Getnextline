@@ -5,7 +5,7 @@
 ** Login   <robin@epitech.net>
 **
 ** Started on  Mon Jan  4 15:11:24 2016 robin
-** Last update Thu Jan 14 10:01:06 2016 robin
+** Last update Thu Jan 14 11:02:57 2016 robin
 */
 
 #include "./get_nextline.h"
@@ -62,7 +62,7 @@ char	*my_realloc(char *buffer, char *stock)
       stock[k] = tmp[k];
       k++;
     }
-  free (tmp);
+  free(tmp);
   return (stock);
 }
 
@@ -97,22 +97,24 @@ char	*manhattan_project(char *buffer)
   while (buffer[i] != '\n' && buffer[i] != '\0')
     {
       i++;
-      if (buffer[i] == '\n')
-	{
-	  k = i;
-	  i = 0;
-	  tmp = malloc(READ_SIZE + 1);
-	  while (buffer[i] != '\0')
-	    {
-	      tmp[k] = buffer[i];
-	      i++;
-	      k++;
-	    }
-	  tmp[READ_SIZE + 1] = '\0';
-	  free (buffer);
-	  buffer = tmp;
-	}
     }
+  if (buffer[i] == '\n')
+	{
+	  i++;
+	  tmp = malloc(READ_SIZE + 1);
+	  if (buffer[i] != '\0')
+	    {
+	      while (buffer[i] != '\0')
+		{
+		  tmp[k] = buffer[i];
+		  i++;
+		  k++;
+		}
+	      tmp[k] = '\0';
+	      free (buffer);
+	      buffer = tmp;
+	    }
+	}
   return (buffer);
 }
 
