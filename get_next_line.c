@@ -5,7 +5,7 @@
 ** Login   <robin@epitech.net>
 **
 ** Started on  Mon Jan  4 15:11:24 2016 robin
-** Last update Thu Jan 14 11:02:57 2016 robin
+** Last update Thu Jan 14 19:45:02 2016 Voyevoda
 */
 
 #include "./get_nextline.h"
@@ -13,24 +13,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdlib.h>
-
-char	my_putchar(char c)
-{
-  write(1, &c, 1);
-}
-
-int	my_putstr(char *str)
-{
-  int	j;
-
-  j = 0;
-  while (str[j] != '\0')
-    {
-      my_putchar(str[j]);
-      j++;
-    }
-  return (j);
-}
 
 int	my_strlen(char *str)
 {
@@ -51,10 +33,6 @@ char	*my_realloc(char *buffer, char *stock)
   int	k;
 
   i = k = 0;
-  if (buffer == NULL)
-    return (buffer);
-  if (stock == NULL)
-    fill_stock(buffer, stock);
   tmp = stock;
   stock = malloc(my_strlen(buffer) + 1 + (my_strlen(tmp)));
   while (tmp[k] != '\0')
@@ -80,6 +58,7 @@ int		fill_stock(char *buffer, char *stock)
       if (buffer[j] == '\n')
 	{
 	  stock[k] = '\0';
+	  k = 0;
 	  return (1);
 	}
     }
@@ -90,31 +69,24 @@ int		fill_stock(char *buffer, char *stock)
 char	*manhattan_project(char *buffer)
 {
   int	i;
-  char	*tmp;
   int	k;
 
   i = k = 0;
+  if (buffer[0] == '\0')
+    return (NULL);
   while (buffer[i] != '\n' && buffer[i] != '\0')
+    i++;
+  if (buffer[i] == '\n')
     {
       i++;
-    }
-  if (buffer[i] == '\n')
+      while (buffer[i] != '\0')
 	{
+	  buffer[k] = buffer[i];
+	  k++;
 	  i++;
-	  tmp = malloc(READ_SIZE + 1);
-	  if (buffer[i] != '\0')
-	    {
-	      while (buffer[i] != '\0')
-		{
-		  tmp[k] = buffer[i];
-		  i++;
-		  k++;
-		}
-	      tmp[k] = '\0';
-	      free (buffer);
-	      buffer = tmp;
-	    }
 	}
+      buffer[k] = '\0';
+    }
   return (buffer);
 }
 
@@ -125,7 +97,8 @@ char		*get_next_line(const int fd)
   int		k;
   int		j;
 
-  j = k = 0;
+  k = 0;
+  j = 1;
   stock = malloc(READ_SIZE + 1);
   if (buffer == NULL)
     {
@@ -134,29 +107,13 @@ char		*get_next_line(const int fd)
 	return (NULL);
       buffer[j] = '\0';
     }
-  else
-    buffer = manhattan_project(buffer);
-  while ((k = fill_stock(buffer, stock) == 0))
+  else if ((buffer = manhattan_project(buffer)) == NULL)
+    return (NULL);
+  while ((k = fill_stock(buffer, stock) == 0 && j > 0))
     {
       j = read(fd, buffer, READ_SIZE);
       buffer[j] = '\0';
       stock = my_realloc(buffer, stock);
     }
   return (stock);
-}
-
-int	main(int ac, char **av)
-{
-  char	*s;
-  int	fd;
-
-  //fd = open(av[1], O_RDONLY);
-  while (s = get_next_line(0))
-    {
-      //s = get_next_line(fd);
-      my_putstr(s);
-      my_putchar('\n');
-      free(s);
-    }
-  return (0);
 }
