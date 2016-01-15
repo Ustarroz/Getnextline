@@ -5,14 +5,15 @@
 ** Login   <robin@epitech.net>
 **
 ** Started on  Mon Jan  4 15:11:24 2016 robin
-** Last update Thu Jan 14 19:45:02 2016 Voyevoda
+** Last update Fri Jan 15 15:29:42 2016 Voyevoda
 */
 
-#include "./get_nextline.h"
+#include "./get_next_line.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 int	my_strlen(char *str)
 {
@@ -29,10 +30,9 @@ int	my_strlen(char *str)
 char	*my_realloc(char *buffer, char *stock)
 {
   char	*tmp;
-  int	i;
   int	k;
 
-  i = k = 0;
+  k = 0;
   tmp = stock;
   stock = malloc(my_strlen(buffer) + 1 + (my_strlen(tmp)));
   while (tmp[k] != '\0')
@@ -50,6 +50,7 @@ int		fill_stock(char *buffer, char *stock)
   static int	k = 0;
 
   j = 0;
+
   while (buffer[j] != '\0' && buffer[j] != '\n')
     {
       stock[k] = buffer[j];
