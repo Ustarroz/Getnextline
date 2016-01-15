@@ -5,7 +5,7 @@
 ** Login   <robin@epitech.net>
 **
 ** Started on  Mon Jan  4 15:11:24 2016 robin
-** Last update Fri Jan 15 15:29:42 2016 Voyevoda
+** Last update Fri Jan 15 19:58:52 2016 Voyevoda
 */
 
 #include "./get_next_line.h"
@@ -50,7 +50,6 @@ int		fill_stock(char *buffer, char *stock)
   static int	k = 0;
 
   j = 0;
-
   while (buffer[j] != '\0' && buffer[j] != '\n')
     {
       stock[k] = buffer[j];
