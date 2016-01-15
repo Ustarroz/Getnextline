@@ -1,0 +1,404 @@
+#!/bin/bash
+IGNORE_GLOB=0
+IGNORE_FORBIDDEN_KEYWORDS=0
+
+WAR="\\033[1;33m"
+ERR="\\033[1;31m"
+END="\\033[0m"
+CURRENT_FILE=""
+SUCCESS=0
+FAILURE=1
+EMPTY_LINE=0
+IN_FUNCTION=0
+INCLUDE_AUTH=1
+
+array_funcs=()
+errors=0
+total=0
+
+include()
+{
+    echo "$1" | grep -e "^#include" >& /dev/null
+    if [[ $? -eq 0 ]]
+    then
+	if [[ $INCLUDE_AUTH -eq 0 ]]
+	then
+	    errors=$(($errors+1))
+	    echo -e "$ERR$CURRENT_FILE$END:$ERR$process$END\t#includes are at the top of the file"
+	fi
+	echo "$1" | grep -e "^#include"$'[ \t]*'"[<\"].*\.h[>\"]$" >& /dev/null
+	if [[ $? -eq 1 ]]
+	    then
+	    errors=$(($errors+1))
+	    echo -e "$ERR$CURRENT_FILE$END:$ERR$process$END\t#include not written properly"
+	    return $FAILURE
+	fi
+    fi
+    return $SUCCESS
+}
+
+empty_line()
+{
+    r=$SUCCESS
+    echo "$1" | grep -e "^"$'[ \t][ \t]*'"$" >& /dev/null
+    if [[ $? -eq 0 ]]
+	then
+	errors=$(($errors+1))
+	echo -e "$ERR$CURRENT_FILE$END:$ERR$process$END\tBlank line with space(s) or/and tab(s)"
+	EMPTY_LINE=$(($EMPTY_LINE+1))
+	r=$FAILURE
+    fi
+    echo "$1" | grep -e "^$" >& /dev/null
+    if [[ $? -eq 0 ]]
+    then
+	EMPTY_LINE=$(($EMPTY_LINE+1))
+    elif [[ $r -eq $SUCCESS ]]
+    then
+	EMPTY_LINE=0
+    fi
+    if [[ $EMPTY_LINE -gt 1 ]]
+    then
+	EMPTY_LINE=0
+	errors=$(($errors+1))
+	echo -e "$ERR$CURRENT_FILE$END:$ERR$process$END\tToo many blank lines"
+	r=$FAILURE
+    fi
+    return $r
+}
+
+forbidden_keywords()
+{
+    echo "$1" | grep -we "switch\|for\|goto\|do" >& /dev/null
+    if [[ $? -eq 0 ]]
+    then
+	errors=$(($errors+1))
+	echo -e "$ERR$CURRENT_FILE$END:$ERR$process$END\tYou're using forbidden keywords"
+	return $FAILURE
+    fi
+    return $SUCCESS
+}
+
+spaces()
+{
+    r=$SUCCESS
+    echo "$1" | grep -e ",[^ ]" &> /dev/null
+    if [[ $? -eq 0 ]]
+    then
+	errors=$(($errors+1))
+	echo -e "$ERR$CURRENT_FILE$END:$ERR$process$END\tNo space after comma"
+	r=$FAILURE
+    fi
+    echo "$1" | grep -e "auto[^ ]" -e "break[^ ]" -e "case[^ ]" -e "const[^ ]" -e "continue[^ ]" -e "default[^ ]" -e "else[^ ]" -e "enum[^ ]" -e "extern[^ ]" -e "if[^ ndef]" -e "signed[^ ]" -e "unsigned[^ ]" -e "static[^ ]" -e "struct[^ ]" -e "typedef[^ ]" -e "while[^ ]" -e "return[^ ]" >& /dev/null
+    if [[ $? -eq 0 ]]
+    then
+	errors=$(($errors+1))
+	echo -e "$ERR$CURRENT_FILE$END:$ERR$process$END\tNo space after keyword"
+	r=$FAILURE
+    fi
+    echo "$1" | grep -e "\!"$'[ \t]' -e "\~"$'[ \t]' -e '++'$'[ \t]' -e "\-\-"$'[ \t]' >& /dev/null
+    if [[ $? -eq 0 ]]
+    then
+	errors=$(($errors+1))
+	echo -e "$ERR$CURRENT_FILE$END:$ERR$process$END\tNo space after unary operator"
+	r=$FAILURE
+    fi
+    echo "$1" | grep -ie '^#ifdef'$'[^\t]' -ie '^#if[def]'$'[^\tdef]' -ie '^#elif'$'[^\t]' >& /dev/null
+    if [[ $? -eq 0 ]]
+    then
+	errors=$(($errors+1))
+	echo -e "$ERR$CURRENT_FILE$END:$ERR$process$END\tNo indent after C preprocessor"
+	r=$FAILURE
+    fi
+    # echo "$1" | grep -e '[^ ]\!\=' -e '\!\=[^ ]' -e '[^ ]\%' -e '\%[^ \=]' -e '[^ ]\%\=' -e '\%\=[^ ]' -e '[^ ]\&\&' -e '\&\&[^ ]' -e '[^ ]\&\=' -e '\&\=[^ ]' -e '[^ (]\*\=' -e '\*\=[^ ]' -e '[^ ]\+\=' #-e '\+\=[^ ]' -e '[^ ]\-' -e '\-[^ ]' -e '[^ \*\/]\/' -e '\/[^ \*\/]' -e '[^ ]\/\=' -e '\/\=[^ ]'
+    # if [[ $? -eq 0 ]]
+    # then
+    # 	errors=$(($errors+1))
+    # 	echo -e "bitwise operator error line $process"
+    # 	r=$FAILURE
+    # fi
+    return $r
+}
+
+general()
+{
+    r=$SUCCESS
+    echo "$1" | sed "s/\".*\"//g" | grep -E ';.+'
+    if [[ $? -eq 0 ]]
+    then
+	errors=$(($errors+1))
+	echo -e "$ERR$CURRENT_FILE$END:$ERR$process$END\tSemicolon with something after"
+	r=$FAILURE
+    fi
+    echo "$1" | grep '{' >& /dev/null
+    if [[ $? -eq 0 ]]
+    then
+	IN_FUNCTION=$(($IN_FUNCTION+1))
+    fi
+   echo "$1" | grep '}' >& /dev/null
+    if [[ $? -eq 0 ]]
+    then
+	IN_FUNCTION=$(($IN_FUNCTION-1))
+    fi    
+    if [[ ${#1} -gt 80 ]]
+	then
+	errors=$(($errors+1))
+	echo -e "$ERR$CURRENT_FILE$END:$ERR$process$END\t80 columns exceeded"
+	r=$FAILURE
+    fi
+    ret=`echo "$1" | grep -o "for" | wc -l`
+    if [[ $ret -eq 0 ]] || [[ $ret -gt 1 ]]
+    then
+	if [[ `echo "$1" | sed "s/\".*\"//g" | grep -o ";" | wc -l` -gt 1 ]]
+	then
+	    errors=$(($errors+1))
+	    echo -e "$ERR$CURRENT_FILE$END:$ERR$process$END\tToo many instructions on the same line"
+	    r=$FAILURE
+	fi
+    fi
+    echo "$1" | grep -e $'[ \t]$' >& /dev/null
+    if [[ $? -eq 0 ]]
+	then
+	errors=$(($errors+1))
+	echo -e "$ERR$CURRENT_FILE$END:$ERR$process$END\tSpace(s) or tab(s) at the end of the line"
+	r=$FAILURE
+    fi
+    if [[ $IGNORE_FORBIDDEN_KEYWORDS -eq 0 ]]
+    then
+	forbidden_keywords "$1"
+	if [[ $? -eq $FAILURE ]]
+	then
+	    r=$FAILURE
+	fi
+    fi
+    spaces "$1"
+    if [[ $? -eq 0 ]]
+    then
+	r=$FAILURE
+    fi
+    return $r
+}
+
+funcs()
+{
+    r=$SUCCESS
+    echo "$1" | grep -e '.*'$'[^ ]\t\{1,\}''[^ (\*].*(.*)$' >& /dev/null
+    if [[ $? -eq 0 ]]
+    then
+	if [[ `echo "$1" | grep -oe "," | wc -l` -gt 3 ]]
+	then
+	    errors=$(($errors+1))
+	    echo -e "$ERR$CURRENT_FILE$END:$ERR$process$END\tToo many parameters"
+	    r=$FAILURE
+	fi
+	INCLUDE_AUTH=0
+	name_func=`echo "$1" | sed 's/(.*//g' | sed 's/.*\t//g'`
+	array_funcs+=($name_func)
+	r=$FAILURE
+    fi
+    if [[ $IN_FUNCTION -eq 0 ]]
+    then
+	echo "$1" | grep -e '.*'$' \{1,\}[^\t(\*]*(.*)$' >& /dev/null
+	if [[ $? -eq 0 ]]
+	then
+	    if [[ `echo "$1" | grep -oe "," | wc -l` -gt 3 ]]
+	    then
+		errors=$(($errors+1))
+		echo -e "$ERR$CURRENT_FILE$END:$ERR$process$END\tToo many parameters"
+		r=$FAILURE
+	    fi
+	    INCLUDE_AUTH=0
+    	    errors=$(($errors+1))
+    	    echo -e "$ERR$CURRENT_FILE$END:$ERR$process$END\tNo tab on function name"
+    	    r=$FAILURE
+	fi
+    fi
+    return $r
+}
+
+content()
+{
+    process=11
+    while IFS= read -r line
+    do
+	empty_line "$line"
+	if [[ $? -eq $FAILURE ]]
+	then
+    	    process=$(($process+1))
+	    continue
+	fi
+    	include "$line"
+	if [[ $? -eq $FAILURE ]]
+    	then
+    	    process=$(($process+1))
+    	    continue
+    	fi
+	funcs "$line"
+	if [[ $? -eq $FAILURE ]]
+	then
+	    process=$(($process+1))
+	    continue
+	fi
+	general "$line"
+	if [[ $? -eq $FAILURE ]]
+	    then
+	    process=$(($process+1))
+	    continue
+	fi
+    	process=$(($process+1))
+    done <<EOF
+$1
+EOF
+}
+
+defines()
+{
+    echo "$1" | grep -e "^#define" | grep -ve "_BSD_SOURCE\|_XOPEN_SOURCE\|_GNU_SOURCE\|__STRICT_ANSI__\|_POSIX_C_SOURCE\|_POSIX_SOURCE\|_XOPEN_SOURCE\|_XOPEN_SOURCE_EXTENDED\|_ISOC95_SOURCE\|_ISOC99_SOURCE\|_ISOC11_SOURCE\|_LARGEFILE64_SOURCE\|_FILE_OFFSET_BITS\|_BSD_SOURCE\|_SVID_SOURCE\|_ATFILE_SOURCE\|_REENTRANT\|_THREAD_SAFE\|_FORTIFY_SOURCE" >& /dev/null
+    if [[ $? -eq 0 ]]
+    then
+	errors=$(($errors+1))
+	echo -e "$ERR$CURRENT_FILE$END:$ERR?$END\tYou're not allowed to put your own #define in C files"
+    fi
+    echo "$1" | grep -e "^#define.*\\\\" >& /dev/null
+    if [[ $? -eq 0 ]]
+    then
+	errors=$(($errors+1))
+	echo -e "$ERR$CURRENT_FILE$END:$ERR?$END\tYou're not allowed to use multilines macros"
+    fi
+}
+
+global()
+{
+    echo "$1" | grep -e '.*'$'\t\{1,\}''g_.*' >& /dev/null
+    if [[ $? -eq 0 ]]
+    then
+	echo -e "$WAR$CURRENT_FILE$END:$WAR?$END\tWarning, you've global(s) somewhere or you don't respect the norme (g_ stands for a global)"
+    fi
+    echo "$1" | grep -e '.*'' \{1,\}''g_.*' >& /dev/null
+    if [[ $? -eq 0 ]]
+    then
+	errors=$(($errors+1))
+	echo -e "$WAR$CURRENT_FILE$END:$WAR?$END\tWarning, you've global(s) somewhere or you don't respect the norme (g_ stands for a global)"
+	echo -e "$ERR$CURRENT_FILE$END:$ERR?$END\tGlobals must be aligned with tabs not spaces"
+    fi
+}
+
+check_functions()
+{
+    if [[ ${#array_funcs[*]} -gt 5 ]]
+    then
+	errors=$(($errors+1))
+	echo -e "$ERR$CURRENT_FILE$END:$ERR?$END\t5 functions per files exceeded"
+    fi
+    for item in ${array_funcs[*]}
+    do
+	./.extract "$item" ./.out
+	file=`cat ./.out`
+	length=`echo "$file" | wc -l`
+	echo "$file" | grep -e '//' -e '/\*' >& /dev/null
+	if [[ $? -eq 0 ]]
+	then
+	    errors=$(($errors+1))
+	    echo -e "$ERR$CURRENT_FILE$END:$ERR$item$END\tComments in function"
+	fi
+	if [[ $length -gt 28 ]]
+	then
+	    errors=$(($errors+1))
+	    echo -e "$ERR$CURRENT_FILE$END:$ERR$item$END\t25 lines exceeded"
+	fi
+    done
+}
+
+norme()
+{
+    CURRENT_FILE="$1"	
+    file=`cat "$1"`
+    # header "`echo "$file" | head -n 10 | tr -d '\n'`"
+    if [[ ${1##*.} == "c" ]]
+    then
+	defines "$file"
+	if [[ $IGNORE_GLOB -eq 0 ]]
+	then
+	    global "$file"
+	fi
+	content "`echo "$file" | tail -n +11`"
+	etags $CURRENT_FILE
+	check_functions
+    fi
+}
+
+usage()
+{
+    echo -e "\n\t./mouli [--ign_global] [--ign_keywords] file.[c,h] file2.[c,h] ..."
+    echo -e "\t--ign_global disable globals checking"
+    echo -e "\t--ign_keywords disable forbidden keywords such as switch/for/goto/do while"
+    echo -e "\tNot implemented : (take a look in the norme file)\n\t\tFew unary operators like & *\n\t\t"
+}
+
+main()
+{
+    echo "$@" | grep -e "--help" >& /dev/null
+    if [[ $? -eq 0 ]]
+    then
+	usage
+	exit
+    fi
+    if [[ $# -eq 0 ]]
+    then
+	usage
+	exit
+    fi
+    echo "$@" | grep -e "--ign_global" >& /dev/null
+    if [[ $? -eq 0 ]]
+    then
+	IGNORE_GLOB=1
+    fi
+    echo "$@" | grep -e "--ign_keywords" >& /dev/null
+    if [[ $? -eq 0 ]]
+    then
+	IGNORE_FORBIDDEN_KEYWORDS=1
+    fi
+    while [[ $1 ]]
+    do
+	if [[ "${1:0:1}" = "-" ]]
+	then
+	    shift
+	    continue
+	fi
+	INCLUDE_AUTH=1
+	array_funcs=()
+	echo "Analysing $1..."
+	norme $1
+	total=$((total+errors))
+	echo -e "\t\\033[1m$errors mistake(s) in $1\\033[0m"
+	errors=0
+	shift
+    done
+    echo "Total $total mistake(s)"
+}
+
+echo '
+:;exec emacs --batch -Q -l $0 -f main "$@"
+(defun main ()
+  (setq fun-name (nth 0 command-line-args-left))
+  (if (eq fun-name nil)
+      (progn
+        (message "Usage: c-extract-function <tag> [to-file]\n")
+        (quit-window)))
+  (setq to-file (nth 1 command-line-args-left))
+  (if (eq to-file nil)
+      (setq to-file "/dev/stdout"))
+  (setq tags-file-name "TAGS")
+  (find-tag fun-name)
+  (c-mark-function)
+  (write-region (mark) (point) to-file))' > ./.extract && chmod +x ./.extract
+
+catch()
+{
+    rm -f ./.extract ./TAGS ./.out >& /dev/null
+    exit 0
+}
+
+trap catch SIGINT
+
+main "$@"
+rm -f ./.extract ./TAGS ./.out >& /dev/null
