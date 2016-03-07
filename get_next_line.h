@@ -5,7 +5,7 @@
 ** Login   <robin@epitech.net>
 **
 ** Started on  Mon Jan  4 15:07:16 2016 robin
-** Last update Fri Jan 15 11:04:04 2016 Voyevoda
+** Last update Mon Mar  7 19:41:40 2016 Voyevoda
 */
 
 #ifndef GET_NEXT_LINE_H_

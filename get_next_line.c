@@ -5,10 +5,10 @@
 ** Login   <robin@epitech.net>
 **
 ** Started on  Mon Jan  4 15:11:24 2016 robin
-** Last update Fri Jan 15 20:05:22 2016 Voyevoda
+** Last update Mon Mar  7 19:40:39 2016 Voyevoda
 */
 
-#include "./get_next_line.h"
+#include "./include/get_next_line.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -50,17 +50,17 @@ int		fill_stock(char *buffer, char *stock)
   static int	k = 0;
 
   j = 0;
-  while (buffer[j] != '\0' && buffer[j] != '\n')
+  while (buffer[j] != '\0')
     {
-      stock[k] = buffer[j];
-      j++;
-      k++;
       if (buffer[j] == '\n')
 	{
 	  stock[k] = '\0';
 	  k = 0;
 	  return (1);
 	}
+      stock[k] = buffer[j];
+      j++;
+      k++;
     }
   stock[k] = '\0';
   return (0);
@@ -102,7 +102,8 @@ char		*get_next_line(const int fd)
   stock = malloc(READ_SIZE + 1);
   if (buffer == NULL)
     {
-      buffer = malloc(READ_SIZE + 1);
+      if ((buffer = malloc(READ_SIZE + 1)) == NULL)
+	return (NULL);
       if ((j = read(fd, buffer, READ_SIZE)) < 0)
 	return (NULL);
       buffer[j] = '\0';
@@ -115,5 +116,5 @@ char		*get_next_line(const int fd)
       buffer[j] = '\0';
       stock = my_realloc(buffer, stock);
     }
-  return (stock);
+  return ((j == 0 && stock[0] == '\0') ? NULL : stock);
 }
