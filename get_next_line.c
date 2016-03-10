@@ -8,7 +8,7 @@
 ** Last update Mon Mar  7 19:40:39 2016 Voyevoda
 */
 
-#include "./include/get_next_line.h"
+#include "./get_next_line.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
