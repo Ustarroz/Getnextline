@@ -5,7 +5,7 @@
 ** Login   <robin@epitech.net>
 **
 ** Started on  Mon Jan  4 15:11:24 2016 robin
-** Last update Mon Mar  7 19:40:39 2016 Voyevoda
+** Last update Fri Mar 11 00:27:02 2016 Voyevoda
 */
 
 #include "./get_next_line.h"
